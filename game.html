@@ -494,3 +494,87 @@ function drawDayCompleteMenu() {
   fr("CONTINUE (Extra Profit)", btnCont.x+btnCont.w/2, btnCont.y+btnCont.h-12, 11, '#fff', 'center');
   G.dayCompleteButtons = { end: btnEnd, cont: btnCont };
 }
+// =============================================================
+//  INPUT, UPGRADES, MAIN LOOP
+// =============================================================
+canvas.addEventListener('mousemove', e=>{ 
+  let {x:mx,y:my}=toLogical(e);
+  if(G.state==='playing'){
+    MACHINES.forEach(m=>m.hovered=false);
+    let m=getMachineAt(mx,my);
+    canvas.style.cursor=m?'pointer':'default';
+    if(m)m.hovered=true;
+  } else canvas.style.cursor='default';
+});
+
+canvas.addEventListener('click', e=>{ 
+  let {x:mx,y:my}=toLogical(e);
+  if(G.state==='daySelect'){
+    if(G.daySelectButtons){
+      for(let btn of G.daySelectButtons){
+        if(mx>=btn.x && mx<=btn.x+btn.w && my>=btn.y && my<=btn.y+btn.h && !btn.locked){
+          startDay(btn.day);
+          return;
+        }
+      }
+    }
+    if(G.prestigeBtn && mx>=G.prestigeBtn.x && mx<=G.prestigeBtn.x+G.prestigeBtn.w && my>=G.prestigeBtn.y && my<=G.prestigeBtn.y+G.prestigeBtn.h){
+      prestigeReset();
+    }
+  } else if(G.state==='playing'){
+    if(G.showDayCompleteMenu && G.dayCompleteButtons){
+      let end = G.dayCompleteButtons.end, cont = G.dayCompleteButtons.cont;
+      if(mx>=end.x && mx<=end.x+end.w && my>=end.y && my<=end.y+end.h){
+        completeDay(true);
+        return;
+      }
+      if(mx>=cont.x && mx<=cont.x+cont.w && my>=cont.y && my<=cont.y+cont.h){
+        G.showDayCompleteMenu = false;
+        addLog("Continuing shift – extra profit, but next day stays locked until you End Day.", 'good');
+        return;
+      }
+    }
+    let m = getMachineAt(mx,my);
+    if(m && !m.brewing) brewDrink(m);
+  } else if(G.state==='gameover'){
+    if(G.goBtn){
+      let {pa,mn}=G.goBtn;
+      if(mx>=pa.x && mx<=pa.x+pa.w && my>=pa.y && my<=pa.y+pa.h){
+        initGame();
+      }
+      if(mx>=mn.x && mx<=mn.x+mn.w && my>=mn.y && my<=mn.y+mn.h){
+        initGame();
+      }
+    }
+  }
+});
+
+function getMachineAt(mx,my){ return MACHINES.find(m=>mx>=m.x-8&&mx<=m.x+82&&my>=m.y-8&&my<=m.y+132)||null; }
+function updateUpgradePanel(){ try{ let panel=document.getElementById('upgrade-panel'); if(G.state!=='playing') { panel.classList.remove('visible'); return; } panel.classList.add('visible'); panel.innerHTML='<div class="upg-title">MANAGEMENT</div>'; UPGRADES_DEF.forEach(upg=>{ let lvl=G.upgrades[upg.id],maxed=lvl>=upg.maxLvl,cost=upg.cost+lvl*40,can=G.coins>=cost; let div=document.createElement('div'); div.className='upg-card'; div.innerHTML=`<div class="upg-row"><div class="upg-icon">${upg.icon}</div><div><div class="upg-name">${upg.name}</div><div class="upg-stars">${'⭐'.repeat(lvl)}${'☆'.repeat(upg.maxLvl-lvl)}</div></div></div><div class="upg-desc">${upg.desc}</div><button class="upg-btn" data-id="${upg.id}"${maxed||!can?' disabled':''}>${maxed?'✅ MAX':'Buy $'+cost}</button>`; panel.appendChild(div); }); panel.querySelectorAll('.upg-btn').forEach(btn=>btn.addEventListener('click',()=>buyUpgrade(btn.dataset.id))); let cd=document.createElement('div'); cd.style.cssText='text-align:center;padding:8px 0;border-top:1px solid rgba(244,168,32,0.3);margin-top:4px;'; cd.innerHTML=`<span style="font-family:'Fredoka One',cursive;font-size:1.1rem;color:#f4a820;">💰 $${G.coins}</span>`; panel.appendChild(cd); }catch(e){} }
+function buyUpgrade(id){ let upg=UPGRADES_DEF.find(u=>u.id===id); let lvl=G.upgrades[id],cost=upg.cost+lvl*40; if(G.coins<cost||lvl>=upg.maxLvl)return; G.coins-=cost; G.upgrades[id]++; if(upg.effect==='speed') G.brewSpeed=Math.max(0.35,G.brewSpeed-0.22); if(upg.effect==='patience') G.patienceMul+=0.35; if(upg.effect==='bonus') G.coinBonus+=3; if(upg.effect==='slots') G.maxQ+=1; if(upg.effect==='auto') addLog('Barista hired! Auto-brew every 6s','good'); if(upg.effect==='spawn') G.spawnMod*=0.7; if(upg.effect==='price') G.drinkPriceMod+=3; if(upg.effect==='slots2') G.maxQ+=2; updateUpgradePanel(); addLog('✨ '+upg.name+' upgraded!','good'); }
+function addLog(msg,type=''){ let log=document.getElementById('event-log'); let d=document.createElement('div'); d.className='log-'+type; d.textContent=msg; log.appendChild(d); while(log.children.length>10)log.removeChild(log.firstChild); }
+
+// =============================================================
+//  MAIN LOOP
+// =============================================================
+let lastT=0;
+function loop(ts){ try{ let dt=Math.min((ts-lastT)/1000,0.1); lastT=ts;
+  if(G.state==='playing' && G.running && !G.showDayCompleteMenu){
+    let spawnRate=Math.max(3.0-G.served*0.008,1.8)/G.spawnMod;
+    G.spawnT+=dt; if(G.spawnT>=spawnRate){G.spawnT=0;spawnCustomer();}
+    updateMachines(dt); updateCustomers(dt); updateParticles(); updateCups();
+  } else { updateParticles(); updateCups(); }
+  ctx.clearRect(0,0,LW,LH);
+  if(G.state==='daySelect') drawDaySelect();
+  else if(G.state==='playing'){ drawScene(); drawCustomers(); drawParticles(); drawCups(); drawHUD(); drawDayCompleteMenu(); }
+  else if(G.state==='gameover') drawGameOver();
+}catch(e){ console.error(e); } requestAnimationFrame(loop); }
+
+function drawGameOver(){ goT=(goT||0)+0.016; let bg=ctx.createLinearGradient(0,0,0,LH); bg.addColorStop(0,'#0d0500'); bg.addColorStop(1,'#2a1008'); ctx.fillStyle=bg; ctx.fillRect(0,0,LW,LH); fr("SHIFT OVER", LW/2, 120, 40, C.gold, 'center'); fr(`Day ${G.currentDay} Goal: $${G.dailyProfitGoal} (Failed)`, LW/2, 170, 16, '#fff', 'center'); fr(`You earned: $${G.dailyProfitEarned}`, LW/2, 210, 14, C.cream, 'center'); let stats=[{i:'💰',l:'Total Coins',v:'$'+G.coins},{i:'😊',l:'Served',v:''+G.served},{i:'😤',l:'Missed',v:''+G.missed},{i:'🔥',l:'Best Streak',v:'x'+G.bestStreak}]; let sx=LW/2-202,sy=250; stats.forEach((s,i)=>{ let bx=sx+(i%2)*210,by=sy+Math.floor(i/2)*80; rect(bx,by,192,68,'rgba(255,255,255,0.05)'); ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1.5; ctx.strokeRect(bx,by,192,68); ctx.font='22px serif'; ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.fillText(s.i,bx+10,by+36); fr(s.v,bx+40,by+36,22,C.gold); fr(s.l,bx+40,by+55,11,'rgba(255,255,255,0.5)'); }); ctx.fillStyle=C.goldDk; ctx.beginPath(); ctx.roundRect(LW/2-100,400,200,50,25); ctx.fill(); ctx.fillStyle=C.gold; ctx.beginPath(); ctx.roundRect(LW/2-100,394,200,50,25); ctx.fill(); fr("▶ BACK TO MENU", LW/2, 425, 16, C.brown, 'center'); G.goBtn={pa:{x:LW/2-100,y:394,w:200,h:50}}; }
+
+initGame();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+```
