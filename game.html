@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coffee Shop Tycoon – Hard Mode Rebalanced</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka+One&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+  body { background:#1a0a00; display:flex; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
+  canvas { display:block; cursor:default; }
+  #upgrade-panel {
+    position:fixed; right:0; top:0; bottom:0; width:300px;
+    background:rgba(20,8,0,0.97); border-left:3px solid #f4a820;
+    padding:12px 10px; display:none; flex-direction:column; gap:8px;
+    pointer-events:all; overflow-y:auto; z-index:10;
+  }
+  #upgrade-panel.visible { display:flex; }
+  .upg-title { font-family:'Press Start 2P',monospace; font-size:7px; color:#f4a820; text-align:center; padding-bottom:8px; border-bottom:1px solid rgba(244,168,32,0.3); margin-bottom:4px; }
+  .upg-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:4px; }
+  .upg-row { display:flex; align-items:center; gap:6px; }
+  .upg-icon { font-size:1.3rem; }
+  .upg-name { font-family:'Fredoka One',cursive; font-size:0.78rem; color:#fdf6ec; }
+  .upg-desc { font-size:0.62rem; color:rgba(255,255,255,0.5); line-height:1.4; }
+  .upg-stars { font-size:0.6rem; color:#f4a820; }
+  .upg-btn { background:#f4a820; color:#1a0800; border:none; border-radius:5px; font-family:'Fredoka One',cursive; font-size:0.72rem; padding:5px 8px; cursor:pointer; width:100%; box-shadow:0 3px 0 #c8820a; transition:all 0.1s; }
+  .upg-btn:hover:not(:disabled) { transform:translateY(-1px); }
+  .upg-btn:disabled { background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.3); box-shadow:none; cursor:not-allowed; }
+  #event-log { position:fixed; left:8px; bottom:8px; width:210px; background:rgba(0,0,0,0.7); border:1px solid rgba(244,168,32,0.3); border-radius:8px; padding:8px; font-size:0.65rem; line-height:1.8; pointer-events:none; display:none; z-index:10; max-height:130px; overflow:hidden; color:#fdf6ec; }
+  #event-log.visible { display:block; }
+  .log-good { color:#4caf76; }
+  .log-bad  { color:#e05252; }
+  .log-prestige { color:#ffaa44; font-weight:bold; }
+  .log-day { color:#88ccff; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="upgrade-panel"><div class="upg-title">MANAGEMENT</div></div>
+<div id="event-log"></div>
+<script>
+// =============================================================
+//  POLYFILL for roundRect
+// =============================================================
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    this.moveTo(x+r, y);
+    this.lineTo(x+w-r, y);
+    this.quadraticCurveTo(x+w, y, x+w, y+r);
+    this.lineTo(x+w, y+h-r);
+    this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    this.lineTo(x+r, y+h);
+    this.quadraticCurveTo(x, y+h, x, y+h-r);
+    this.lineTo(x, y+r);
+    this.quadraticCurveTo(x, y, x+r, y);
+    return this;
+  };
+}
+
+// =============================================================
+//  CANVAS + SCALING
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const LW = 800, LH = 520;
+let SCALE = 1;
+
+function resize() {
+  SCALE = Math.min(window.innerWidth / LW, window.innerHeight / LH);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(LW * SCALE * dpr);
+  canvas.height = Math.round(LH * SCALE * dpr);
+  canvas.style.width  = LW * SCALE + 'px';
+  canvas.style.height = LH * SCALE + 'px';
+  ctx.setTransform(SCALE * dpr, 0, 0, SCALE * dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+function toLogical(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x:(e.clientX - r.left) / SCALE, y:(e.clientY - r.top) / SCALE };
+}
+
+// =============================================================
+//  DRAW HELPERS
+// =============================================================
+function rect(x,y,w,h,col){ ctx.fillStyle=col; ctx.fillRect(x|0,y|0,w,h); }
+function circle(x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x|0,y|0,r,0,Math.PI*2); ctx.fill(); }
+function fr(txt,x,y,sz,col,align='left'){ ctx.font=sz+'px "Fredoka One",cursive'; ctx.fillStyle=col; ctx.textAlign=align; ctx.fillText(txt,x|0,y|0); }
+function px(txt,x,y,sz,col,align='left'){ ctx.font=sz+'px "Press Start 2P",monospace'; ctx.fillStyle=col; ctx.textAlign=align; ctx.fillText(txt,x|0,y|0); }
+
+const C = {
+  gold:'#f4a820', goldDk:'#c8820a', cream:'#fdf6ec', brown:'#3d1f0a',
+  green:'#4caf76', red:'#e05252', blue:'#4a90e2', purple:'#aa66cc'
+};
+
+const COUNTER_Y = Math.round(LH * 0.55) - 10;
+const QUEUE_START_X = 620;
+const QUEUE_STEP = 115;
+
+// =============================================================
+//  MACHINES & DRINKS (unchanged base values)
+// =============================================================
+const MACHINES = [
+  { drinkId:'espresso',    x:50,  y:COUNTER_Y-105, hovered:false, brewing:false, progress:0, brewElapsed:0, brewTotal:0 },
+  { drinkId:'latte',       x:200, y:COUNTER_Y-105, hovered:false, brewing:false, progress:0, brewElapsed:0, brewTotal:0 },
+  { drinkId:'frappuccino', x:360, y:COUNTER_Y-105, hovered:false, brewing:false, progress:0, brewElapsed:0, brewTotal:0 },
+  { drinkId:'tea',         x:520, y:COUNTER_Y-105, hovered:false, brewing:false, progress:0, brewElapsed:0, brewTotal:0 },
+];
+
+const DRINKS_DEF = [
+  { id:'espresso',    brew:2.2, reward:8  },
+  { id:'latte',       brew:3.2, reward:12 },
+  { id:'frappuccino', brew:4.2, reward:18 },
+  { id:'tea',         brew:2.7, reward:10 },
+];
+
+// =============================================================
+//  HEAVILY INCREASED UPGRADE COSTS (Hard Mode)
+// =============================================================
+const UPGRADES_DEF = [
+  { id:'grinder', name:'Turbo Grinder',  icon:'⚡', desc:'Brew 30% faster',    cost:250, maxLvl:3, effect:'speed'   },
+  { id:'music',   name:'Cozy Playlist',  icon:'🎵', desc:'+35% patience',      cost:300, maxLvl:2, effect:'patience'},
+  { id:'loyalty', name:'Loyalty Cards',  icon:'💳', desc:'+$3 per order',       cost:380, maxLvl:3, effect:'bonus'  },
+  { id:'seats',   name:'Extra Seating',  icon:'🪑', desc:'Queue +1 customer',  cost:400, maxLvl:2, effect:'slots'  },
+  { id:'barista', name:'Hire Barista',   icon:'👩‍🍳', desc:'Auto-brew (every 6s)', cost:700, maxLvl:1, effect:'auto'   },
+  { id:'marketing',name:'Social Media',  icon:'📱', desc:'+30% customers',      cost:550, maxLvl:2, effect:'spawn'  },
+  { id:'quality', name:'Premium Beans',  icon:'✨', desc:'Drinks +$3 value',    cost:650, maxLvl:3, effect:'price'  },
+  { id:'expansion',name:'Shop Expansion',icon:'🏢', desc:'Max queue +2',        cost:800, maxLvl:1, effect:'slots2' },
+];
+
+// =============================================================
+//  GAME STATE – with Day Selection & Unlock System
+// =============================================================
+let G = {};
+
+function initGame() {
+  G = {
+    state: 'daySelect',    // 'daySelect', 'playing', 'gameover'
+    coins: 400,            // higher starting cash to compensate for high upgrade costs
+    served: 0, missed: 0, streak: 0, bestStreak: 0,
+    customers: [], nextCid: 0,
+    spawnT: 0,
+    brewSpeed: 1.0, patienceMul: 1.0, coinBonus: 0, maxQ: 4,
+    upgrades: Object.fromEntries(UPGRADES_DEF.map(u => [u.id, 0])),
+    running: false,
+    // Tycoon stats
+    reputation: 60,
+    shopLevel: 1,
+    prestigePoints: 0,
+    netWorth: 0,
+    autoBrewTimer: 0,
+    drinkPriceMod: 0,
+    spawnMod: 1.0,
+    totalEarned: 0,
+    // Day progression
+    currentDay: 1,
+    dailyProfitGoal: 1000,    // Day 1 goal $1000
+    dailyProfitEarned: 0,
+    dayBonusReceived: false,
+    showDayCompleteMenu: false,
+    // Unlocked days (day 1 always unlocked)
+    unlockedDays: 1,
+    // Day selection menu
+    selectedDay: 1,
+    daySelectButtons: [],
+    goBtn: null,
+  };
+  MACHINES.forEach(m => {
+    m.brewing = false; m.progress = 0; m.hovered = false;
+    m.brewElapsed = 0; m.brewTotal = 0;
+  });
+  particles = []; floatCups = [];
+}
+
+function unlockNextDay() {
+  if (G.currentDay + 1 > G.unlockedDays) {
+    G.unlockedDays = G.currentDay + 1;
+    addLog(`🔓 NEW DAY UNLOCKED! Day ${G.unlockedDays} is now available.`, 'prestige');
+  }
+}
+
+function startDay(dayNumber) {
+  if (dayNumber > G.unlockedDays) {
+    addLog(`Day ${dayNumber} is locked! Complete Day ${dayNumber-1} first.`, 'bad');
+    return false;
+  }
+  G.state = 'playing';
+  G.running = true;
+  G.currentDay = dayNumber;
+  // Goal scales aggressively: base 1000 + (day-1)*600 + prestige bonus
+  G.dailyProfitGoal = Math.floor(1000 + (dayNumber-1) * 600 + G.prestigePoints * 150);
+  G.dailyProfitEarned = 0;
+  G.dayBonusReceived = false;
+  G.showDayCompleteMenu = false;
+  G.served = 0; G.missed = 0; G.streak = 0;
+  G.customers = [];
+  G.spawnT = 0;
+  G.reputation = Math.min(100, 60 + G.prestigePoints * 3);
+  // Reset machines
+  MACHINES.forEach(m => { m.brewing = false; m.progress = 0; m.brewElapsed = 0; });
+  updateUpgradePanel();
+  document.getElementById('event-log').classList.add('visible');
+  document.getElementById('upgrade-panel').classList.add('visible');
+  for (let i = 0; i < 2; i++) spawnCustomer();
+  addLog(`🌞 DAY ${G.currentDay} START! Goal: $${G.dailyProfitGoal} (No time limit)`, 'day');
+  return true;
+}
+
+function completeDay(endEarly = false) {
+  if (!G.running) return;
+  let bonusCoins = 0;
+  let repBonus = 8;
+  if (endEarly) {
+    let excess = G.dailyProfitEarned - G.dailyProfitGoal;
+    bonusCoins = Math.floor(excess * 0.4) + 200;
+    addLog(`🏁 Day ${G.currentDay} ended early! Bonus: +${bonusCoins} coins`, 'prestige');
+    unlockNextDay();
+  } else {
+    bonusCoins = 120 + G.currentDay * 15;
+    addLog(`🏁 Day ${G.currentDay} completed! Bonus: +${bonusCoins} coins`, 'prestige');
+    unlockNextDay();
+  }
+  G.coins += bonusCoins;
+  G.reputation = Math.min(100, G.reputation + repBonus);
+  G.totalEarned += bonusCoins;
+  // Prestige point every 2 completed days
+  if (G.currentDay % 2 === 0 && G.currentDay > 0) {
+    G.prestigePoints++;
+    addLog(`🏅 PERMANENT PRESTIGE +1! (Total: ${G.prestigePoints})`, 'prestige');
+  }
+  updateShopLevel();
+  updateUpgradePanel();
+  G.state = 'daySelect';
+  G.running = false;
+  G.showDayCompleteMenu = false;
+  document.getElementById('upgrade-panel').classList.remove('visible');
+  document.getElementById('event-log').classList.remove('visible');
+}
+
+function checkDailyGoal() {
+  if (!G.running) return;
+  if (G.dailyProfitEarned >= G.dailyProfitGoal && !G.dayBonusReceived && !G.showDayCompleteMenu) {
+    G.dayBonusReceived = true;
+    G.showDayCompleteMenu = true;
+    addLog(`🎉 DAILY GOAL REACHED! Choose: End Day (unlock next) or Continue`, 'prestige');
+  }
+}
+
+function prestigeReset() {
+  if (G.prestigePoints < 1 && G.netWorth < 2000) {
+    addLog("Need at least 1 Prestige Point or $2000 net worth to Prestige!", 'bad');
+    return;
+  }
+  G.prestigePoints++;
+  addLog(`✨ PRESTIGE LEVEL ${G.prestigePoints} ✨ Permanent income +20%`, 'prestige');
+  // Keep prestige points, reset everything else
+  G.coins = 400;
+  G.served = 0; G.missed = 0; G.streak = 0;
+  G.customers = [];
+  G.upgrades = Object.fromEntries(UPGRADES_DEF.map(u => [u.id, 0]));
+  G.brewSpeed = 1.0; G.patienceMul = 1.0; G.coinBonus = 0; G.maxQ = 4;
+  G.reputation = 60; G.shopLevel = 1; G.netWorth = 0; G.autoBrewTimer = 0;
+  G.drinkPriceMod = 0; G.spawnMod = 1.0; G.totalEarned = 0;
+  G.unlockedDays = 1;
+  G.currentDay = 1;
+  G.state = 'daySelect';
+  G.running = false;
+  MACHINES.forEach(m => { m.brewing = false; m.progress = 0; });
+  updateUpgradePanel();
+  addLog("Game reset with prestige bonus! +20% income per level", 'good');
+}
+
+function updateShopLevel() {
+  let totalEarned = G.totalEarned;
+  let newLevel = 1 + Math.floor(totalEarned / 1500);
+  if (newLevel > G.shopLevel) {
+    G.shopLevel = newLevel;
+    addLog(`🏆 Shop reached Level ${G.shopLevel}!`, 'prestige');
+  }
+  G.netWorth = G.coins;
+}
+
+// =============================================================
+//  CUSTOMERS (no timer, patience balanced)
+// =============================================================
+function activeCustomers() { return G.customers.filter(c => c.state === 'walking' || c.state === 'waiting'); }
+function getDesiredX(customer) { const waiting = activeCustomers(); const index = waiting.findIndex(c => c.id === customer.id); if (index === -1) return QUEUE_START_X + 50; return QUEUE_START_X - index * QUEUE_STEP; }
+function spawnCustomer() {
+  if (!G.running) return;
+  let maxSlots = G.maxQ + (G.upgrades.expansion * 2);
+  if (activeCustomers().length >= maxSlots) return;
+  let drink = DRINKS_DEF[Math.floor(Math.random() * DRINKS_DEF.length)];
+  let patienceBonus = (G.reputation - 50) / 100;
+  let patience = 65 + patienceBonus * 35;  // slightly lower base patience for difficulty
+  G.customers.push({ id: G.nextCid++, seed: Math.floor(Math.random() * 99999), drink, patience: Math.min(100, Math.max(25, patience)), state: 'walking', x: LW + 40, floatY: 0, walkAnim: 0, happy: false, scale: 0.88 + Math.random() * 0.22 });
+}
+function updateCustomers(dt) {
+  let decay = 0.09 / (G.patienceMul * (1 + (G.reputation - 50)/200)); // faster decay
+  const toRemove = [];
+  for (let i = 0; i < G.customers.length; i++) {
+    const c = G.customers[i];
+    if (c.state === 'walking') {
+      const targetX = getDesiredX(c);
+      c.x += (targetX - c.x) * 0.12;
+      c.walkAnim += 0.16;
+      if (Math.abs(c.x - targetX) < 1.5) { c.x = targetX; c.state = 'waiting'; }
+    } else if (c.state === 'waiting') {
+      const targetX = getDesiredX(c);
+      c.x += (targetX - c.x) * 0.2;
+      c.patience -= decay;
+      if (c.patience <= 0) { c.state = 'leaving'; addLog('😤 Customer left!', 'bad'); G.missed++; G.streak = 0; G.reputation = Math.max(0, G.reputation - 3); updateUpgradePanel(); }
+    } else if (c.state === 'leaving') { c.x += 4.2; if (c.x > LW + 80) toRemove.push(i); } 
+    else if (c.state === 'served') { c.floatY -= 2.2; c.x += 1.8; if (c.floatY < -90) toRemove.push(i); }
+  }
+  for (let i = toRemove.length - 1; i >= 0; i--) G.customers.splice(toRemove[i], 1);
+}
+
+// =============================================================
+//  MACHINES + Auto Brew
+// =============================================================
+function brewDrink(m) {
+  if (m.brewing) return;
+  const def = DRINKS_DEF.find(d => d.id === m.drinkId);
+  const cust = G.customers.find(c => c.drink.id === m.drinkId && c.state === 'waiting');
+  if (!cust) { addLog('No one wants that!', 'bad'); return; }
+  m.brewing = true; m.progress = 0; m.brewElapsed = 0;
+  let brewTime = def.brew * G.brewSpeed;
+  if (G.upgrades.barista) brewTime *= 0.65;
+  m.brewTotal = brewTime;
+}
+function updateMachines(dt) {
+  if (G.upgrades.barista && G.running) {
+    G.autoBrewTimer += dt;
+    if (G.autoBrewTimer >= 6.0) {
+      G.autoBrewTimer = 0;
+      let available = MACHINES.filter(m => !m.brewing && G.customers.some(c => c.drink.id === m.drinkId && c.state === 'waiting'));
+      if (available.length) { let chosen = available[Math.floor(Math.random() * available.length)]; brewDrink(chosen); addLog("🤖 Barista started brewing " + chosen.drinkId, 'good'); }
+    }
+  }
+  for (let m of MACHINES) {
+    if (!m.brewing) continue;
+    m.brewElapsed += dt;
+    m.progress = Math.min(100, (m.brewElapsed / m.brewTotal) * 100);
+    if (m.brewElapsed >= m.brewTotal) {
+      m.brewing = false; m.progress = 0;
+      const def = DRINKS_DEF.find(d => d.id === m.drinkId);
+      const targetIndex = G.customers.findIndex(c => c.drink.id === m.drinkId && c.state === 'waiting');
+      if (targetIndex !== -1) {
+        const target = G.customers[targetIndex];
+        let bonus = G.coinBonus + (G.streak >= 3 ? 3 : 0);
+        let priceMod = G.drinkPriceMod + (G.upgrades.quality * 3);
+        let prestigeBonus = 1 + (G.prestigePoints * 0.20);
+        let reward = Math.floor((def.reward + priceMod + bonus) * prestigeBonus);
+        G.coins += reward; G.totalEarned += reward; G.served++; G.streak++;
+        G.reputation = Math.min(100, G.reputation + 1);
+        if (G.streak > G.bestStreak) G.bestStreak = G.streak;
+        target.state = 'served'; target.floatY = 0;
+        spawnCoins(m.x + 35, m.y + 40, reward);
+        spawnCup(m.x + 35, m.y + 30, m.drinkId);
+        addLog(`☕ Served! +$${reward} ${G.streak>=3?'🔥x'+G.streak:''}`, 'good');
+        G.dailyProfitEarned += reward;
+        checkDailyGoal();
+        updateShopLevel();
+        updateUpgradePanel();
+      }
+    }
+  }
+}
