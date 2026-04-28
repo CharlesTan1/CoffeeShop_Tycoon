@@ -9,7 +9,6 @@
 > A complete tycoon/manager game with a real‑time visual shop, dynamic weather, and a deep economic loop – **playable instantly in your browser**.
 
 ![Gameplay Screenshot](Screenshots/Game.png)  
-*Live management panel + animated coffee shop scene*
 
 ---
 
