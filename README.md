@@ -39,10 +39,7 @@ This project was developed as a **14‑day sprint** assignment, showcasing front
 ## 🕹️ Controls & Gameplay
 
 ### Management Panel (Right Side)
-- **Price slider** – Set coffee price per cup ($0.50 – $9.00). Higher price reduces demand.
-- **Restock buttons** – Buy beans ($0.50 each) or cups ($0.10 each) in batches.
-- **Next Day** – Advances the day: calculates sales, deducts rent ($5), updates weather, and triggers customer animation.
-- **Main Menu** – Return to start screen.
+- **Upgrades** - Brewing Speed, More Customers, More Revenue, Auto Brewing Employee
 
 ### Visual Shop (Left Canvas)
 - Shows **barista**, counter, espresso machine, and stack of cups/beans based on your inventory.
@@ -76,8 +73,8 @@ The project includes a dedicated **Team Page** accessible via the navbar. It doc
 
 | Role | Name | GitHub | Responsibilities |
 |------|------|--------|------------------|
-| Project Manager / Lead Developer | *Barista Bot* | (https://github.com/charlestan1) | Game architecture, core loop, canvas visuals |
-| Game Designer / Artist | *Coffee Pixel* | (https://github.com/Hanchetajr22) | UI design, animations,|
+| Project Manager / Lead Developer | | (https://github.com/charlestan1) | Game architecture, core loop, canvas visuals |
+| Game Designer / Artist | | (https://github.com/Hanchetajr22) | UI design, animations,|
 
 ---
 
