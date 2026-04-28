@@ -2,8 +2,8 @@
 # ☕ Coffee Shop Tycoon – Playable on GitHub Pages
 
 [![Play on GitHub Pages](https://img.shields.io/badge/Play%20Now-GitHub%20Pages-brightgreen?style=for-the-badge&logo=github)](https://charlestan1.github.io/CoffeeShop_Tycoon/)
-[![Status](https://img.shields.io/badge/status-live-success)](https://your-username.github.io/coffee-shop-tycoon/)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![Status](https://img.shields.io/badge/status-live-success)](https://charlestan1.github.io/CoffeeShop_Tycoon/)
+
 
 > **Brew, manage, and survive – become the ultimate coffee mogul!**  
 > A complete tycoon/manager game with a real‑time visual shop, dynamic weather, and a deep economic loop – **playable instantly in your browser**.
