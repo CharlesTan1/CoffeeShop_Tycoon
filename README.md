@@ -47,7 +47,7 @@ This project was developed as a **14‑day sprint** assignment, showcasing front
 - **Weather icon** changes dynamically (☀️ / ☁️ / 🌧️).
 
 ### Goal
-Survive as many days as possible without running out of money. Optimise price and stock to maximise your final **score** = `(Days survived × 12) + Final cash + Total profit`.
+Reach Daily Goals and Upgrade your Equipment for Maximum Revenue And Prestige
 
 ---
 
