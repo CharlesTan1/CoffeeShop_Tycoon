@@ -8,7 +8,7 @@
 > **Brew, manage, and survive – become the ultimate coffee mogul!**  
 > A complete tycoon/manager game with a real‑time visual shop, dynamic weather, and a deep economic loop – **playable instantly in your browser**.
 
-![Gameplay Screenshot](screenshots/gameplay.png)  
+![Gameplay Screenshot](screenshots/game.png)  
 *Live management panel + animated coffee shop scene*
 
 ---
@@ -61,11 +61,11 @@ Survive as many days as possible without running out of money. Optimise price an
 
 | Main Menu | In‑Game Management |
 |-----------|--------------------|
-| ![Main Menu](screenshots/menu.png) | ![Game Screen](screenshots/game.png) |
+| ![Main Menu](screenshots/github.png) | ![Game Screen](screenshots/game.png) |
 
-| Visual Shop (Canvas) | Game Over Score |
-|----------------------|-----------------|
-| ![Shop Scene](screenshots/shop.png) | ![Game Over](screenshots/gameover.png) |
+| Visual Shop (Canvas) 
+|----------------------|
+| ![Shop Scene](screenshots/shop.png) |
 
 
 
