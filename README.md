@@ -15,7 +15,7 @@
 ## 🎮 Play Now – No Installation Required
 
 The game is hosted live on **GitHub Pages**. Click the badge above or open:  
-🔗 **[https://your-username.github.io/coffee-shop-tycoon/](https://charlestan1.github.io/CoffeeShop_Tycoon/)**
+🔗 **[https://charlestan1.github.io/CoffeeShop_Tycoon/](https://charlestan1.github.io/CoffeeShop_Tycoon/)**
 
 - Works on desktop, tablet, and mobile browsers.
 - No login, no download – just pure web‑based tycoon action.
